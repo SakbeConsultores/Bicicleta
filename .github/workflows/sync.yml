@@ -28,6 +28,11 @@ jobs:
           node -e "
           const fs = require('fs');
           const raw = JSON.parse(fs.readFileSync('data/sessions_raw.json', 'utf8'));
+          if (!raw.results) {
+            console.error('❌ Notion API error:', JSON.stringify(raw, null, 2));
+            process.exit(1);
+          }
+          console.log('✅ Notion respondió con', raw.results.length, 'registros');
           const sessions = raw.results.map(page => {
             const p = page.properties;
             const get = (key) => p[key]?.number ?? null;
