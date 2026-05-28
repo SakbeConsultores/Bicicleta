@@ -1,0 +1,74 @@
+name: Sync Notion Data
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Corre cada día a las 6am UTC (medianoche Quito / 1am CDMX)
+  workflow_dispatch:      # Permite correrlo manualmente desde GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch data from Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: |
+          mkdir -p data
+          curl -s -X POST https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query \
+            -H "Authorization: Bearer ${NOTION_TOKEN}" \
+            -H "Notion-Version: 2022-06-28" \
+            -H "Content-Type: application/json" \
+            -d '{"sorts": [{"property": "Fecha", "direction": "descending"}], "page_size": 200}' \
+            > data/sessions_raw.json
+
+          node -e "
+          const fs = require('fs');
+          const raw = JSON.parse(fs.readFileSync('data/sessions_raw.json', 'utf8'));
+          const sessions = raw.results.map(page => {
+            const p = page.properties;
+            const get = (key) => p[key]?.number ?? null;
+            const getSelect = (key) => p[key]?.select?.name ?? null;
+            const getDate = (key) => p[key]?.date?.start ?? null;
+            const getText = (key) => p[key]?.title?.[0]?.plain_text ?? p[key]?.rich_text?.[0]?.plain_text ?? null;
+            return {
+              id: page.id,
+              nombre: getText('Sesión'),
+              fecha: getDate('Fecha'),
+              duracion: get('Duración (min)'),
+              distancia: get('Distancia (km)'),
+              cadencia_avg: get('Cadencia Promedio (RPM)'),
+              cadencia_max: get('Cadencia Máxima (RPM)'),
+              velocidad_avg: get('Velocidad Promedio (km/h)'),
+              velocidad_max: get('Velocidad Máxima (km/h)'),
+              fc_avg: get('FC Promedio (bpm)'),
+              fc_max: get('FC Máxima (bpm)'),
+              fc_reposo: get('FC Reposo Pre-sesión (bpm)'),
+              fc_recuperacion: get('FC Recuperación 1min (bpm)'),
+              z1: get('Tiempo Zona 1 (min)'),
+              z2: get('Tiempo Zona 2 (min)'),
+              z3: get('Tiempo Zona 3 (min)'),
+              z4: get('Tiempo Zona 4 (min)'),
+              z5: get('Tiempo Zona 5 (min)'),
+              calorias: get('Calorías'),
+              rpe: get('RPE (1-10)'),
+              energia_pre: get('Energía Pre (1-5)'),
+              sueno: get('Calidad Sueño (1-5)'),
+              dolor_articular: get('Dolor Articular (1-5)'),
+              tipo: getSelect('Tipo')
+            };
+          }).filter(s => s.fecha !== null);
+          fs.writeFileSync('data/sessions.json', JSON.stringify(sessions, null, 2));
+          console.log('✅ Procesadas ' + sessions.length + ' sesiones');
+          "
+
+      - name: Commit and push data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/sessions.json
+          git diff --staged --quiet || git commit -m "🚴 Sync Notion data — $(date +'%Y-%m-%d')"
+          git push

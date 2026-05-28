@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚴 Bicicleta — Training Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #2a3441;
+    --accent: #e05c2a;
+    --accent2: #4fa3e0;
+    --accent3: #3dd68c;
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --z1: #4fa3e0;
+    --z2: #3dd68c;
+    --z3: #f0c94a;
+    --z4: #e07a2a;
+    --z5: #e03a2a;
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left h1 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .header-left h1 span { color: var(--accent); }
+
+  .header-left p {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+
+  #last-update {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-align: right;
+  }
+
+  /* LAYOUT */
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 40px 60px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    margin-bottom: 16px;
+    margin-top: 40px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* KPI GRID */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .kpi:hover { border-color: var(--accent); }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--kpi-color, var(--accent));
+  }
+
+  .kpi-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: var(--font-mono);
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .kpi-value span {
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    margin-left: 4px;
+  }
+
+  .kpi-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-family: var(--font-mono);
+  }
+
+  .kpi-good { --kpi-color: var(--accent3); }
+  .kpi-warn { --kpi-color: var(--z3); }
+  .kpi-info { --kpi-color: var(--accent2); }
+  .kpi-alert { --kpi-color: var(--accent); }
+
+  /* CHART GRID */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .chart-grid-3 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+  }
+
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+
+  .chart-box h3 {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 20px;
+  }
+
+  .chart-box canvas { max-height: 220px; }
+
+  /* ZONA BAR */
+  .zona-bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .zona-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .zona-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    width: 52px;
+    flex-shrink: 0;
+  }
+
+  .zona-track {
+    flex: 1;
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .zona-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+  }
+
+  .zona-pct {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* SESSION TABLE */
+  .session-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  .session-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  .session-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text);
+  }
+
+  .session-table tr:hover td { background: var(--surface2); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+
+  .badge-z2 { background: rgba(61,214,140,0.15); color: var(--z2); }
+  .badge-int { background: rgba(224,122,42,0.15); color: var(--z4); }
+  .badge-rec { background: rgba(79,163,224,0.15); color: var(--z1); }
+  .badge-largo { background: rgba(160,100,224,0.15); color: #a064e0; }
+  .badge-test { background: rgba(224,58,42,0.15); color: var(--z5); }
+
+  /* HR RECOVERY GAUGE */
+  .recovery-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 180px;
+    gap: 8px;
+  }
+
+  .recovery-value {
+    font-family: var(--font-display);
+    font-size: 4rem;
+    line-height: 1;
+  }
+
+  .recovery-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .recovery-status {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+
+  /* STREAK CALENDAR */
+  .streak-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .streak-day {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--surface2);
+  }
+
+  .streak-day.active { background: var(--accent3); }
+  .streak-day.recent { background: var(--accent); }
+
+  /* NO DATA */
+  .no-data {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .no-data .big { font-size: 2rem; margin-bottom: 12px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    main { padding: 20px 16px 40px; }
+    header { padding: 16px; }
+    .chart-grid, .chart-grid-3 { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>🚴 <span>Bicicleta</span> — Training Dashboard</h1>
+    <p>Monitoreo cardiovascular · Zona 2 · Consistencia</p>
+  </div>
+  <div id="last-update">Cargando datos...</div>
+</header>
+
+<main id="app">
+  <div class="no-data">
+    <div class="big">⏳</div>
+    Cargando sesiones desde Notion...
+  </div>
+</main>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────
+const FC_MAX = 165; // Ajusta con tu edad: 220 - edad
+
+// Zonas cardíacas (% de FC_MAX)
+const ZONES = [
+  { name: 'Z1 Recuperación', min: 0,    max: 0.60, color: '#4fa3e0' },
+  { name: 'Z2 Aeróbica',     min: 0.60, max: 0.70, color: '#3dd68c' },
+  { name: 'Z3 Tempo',        min: 0.70, max: 0.80, color: '#f0c94a' },
+  { name: 'Z4 Umbral',       min: 0.80, max: 0.90, color: '#e07a2a' },
+  { name: 'Z5 Máxima',       min: 0.90, max: 1.00, color: '#e03a2a' },
+];
+
+const BADGE_MAP = {
+  'Zona 2 Base': 'badge-z2',
+  'Intervalos': 'badge-int',
+  'Recuperación Activa': 'badge-rec',
+  'Largo': 'badge-largo',
+  'Test': 'badge-test',
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────
+const fmt = (n, dec=1) => n != null ? n.toFixed(dec) : '—';
+const avg = arr => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null;
+const sum = arr => arr.reduce((a,b) => a+(b||0), 0);
+
+function weekNumber(date) {
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 4 - (d.getDay()||7));
+  const yearStart = new Date(d.getFullYear(),0,1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+}
+
+function getWeekKey(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-W${String(weekNumber(d)).padStart(2,'0')}`;
+}
+
+function recoveryStatus(bpm) {
+  if (bpm == null) return { label: 'Sin dato', color: '#7d8590' };
+  if (bpm >= 25)   return { label: '✓ Muy buena', color: '#3dd68c' };
+  if (bpm >= 15)   return { label: '~ Normal', color: '#f0c94a' };
+  return             { label: '↓ Mejorar', color: '#e03a2a' };
+}
+
+// ─── MAIN ─────────────────────────────────────────────────────────────────
+async function loadAndRender() {
+  let sessions = [];
+  try {
+    const resp = await fetch('data/sessions.json?v=' + Date.now());
+    if (!resp.ok) throw new Error('Sin datos');
+    sessions = await resp.json();
+  } catch(e) {
+    document.getElementById('app').innerHTML = `
+      <div class="no-data">
+        <div class="big">📋</div>
+        <strong>No hay sesiones registradas aún.</strong><br><br>
+        Agrega tu primera sesión en Notion y el dashboard se actualizará automáticamente esta noche.
+      </div>`;
+    document.getElementById('last-update').textContent = 'Sin datos';
+    return;
+  }
+
+  // Ordenar por fecha asc para cálculos
+  sessions.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+  const latest = [...sessions].reverse();
+
+  // Última actualización
+  const lastDate = latest[0]?.fecha;
+  document.getElementById('last-update').innerHTML =
+    `Última sesión: <strong>${lastDate || '—'}</strong><br>
+     <span style="font-size:0.65rem">Sync diario vía GitHub Actions</span>`;
+
+  // ── SEMANA ACTUAL ─────────────────────────────────────────────────────
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  weekStart.setHours(0,0,0,0);
+
+  const thisWeek = sessions.filter(s => new Date(s.fecha) >= weekStart);
+  const lastWeek = sessions.filter(s => {
+    const d = new Date(s.fecha);
+    const ws = new Date(weekStart); ws.setDate(ws.getDate() - 7);
+    return d >= ws && d < weekStart;
+  });
+
+  const minutesThisWeek = sum(thisWeek.map(s => s.duracion));
+  const minutesLastWeek = sum(lastWeek.map(s => s.duracion));
+
+  // ── FC RECUPERACIÓN PROMEDIO (últimas 5) ──────────────────────────────
+  const recSessions = latest.filter(s => s.fc_max != null && s.fc_recuperacion != null).slice(0,5);
+  const avgRecovery = recSessions.length
+    ? avg(recSessions.map(s => s.fc_max - s.fc_recuperacion))
+    : null;
+
+  // ── CADENCIA PROMEDIO (últimas 10) ────────────────────────────────────
+  const cadSessions = latest.filter(s => s.cadencia_avg != null).slice(0,10);
+  const avgCadencia = cadSessions.length ? avg(cadSessions.map(s => s.cadencia_avg)) : null;
+
+  // ── EFICIENCIA CARDIOVASCULAR (últimas 10) ────────────────────────────
+  const effSessions = latest.filter(s => s.velocidad_avg && s.fc_avg).slice(0,10);
+  const avgEff = effSessions.length ? avg(effSessions.map(s => s.velocidad_avg / s.fc_avg * 100)) : null;
+
+  // ── ZONA 2 % (últimas 10) ─────────────────────────────────────────────
+  const zonaSessions = latest.filter(s => s.z2 != null).slice(0,10);
+  const totalZonaMin = sum(zonaSessions.map(s => (s.z1||0)+(s.z2||0)+(s.z3||0)+(s.z4||0)+(s.z5||0)));
+  const totalZ2 = sum(zonaSessions.map(s => s.z2||0));
+  const z2Pct = totalZonaMin ? Math.round(totalZ2 / totalZonaMin * 100) : null;
+
+  // ── RACHA ─────────────────────────────────────────────────────────────
+  let streak = 0;
+  const sessionDates = new Set(sessions.map(s => s.fecha));
+  let checkDate = new Date();
+  while (true) {
+    const dateStr = checkDate.toISOString().split('T')[0];
+    if (sessionDates.has(dateStr)) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else if (streak === 0) {
+      checkDate.setDate(checkDate.getDate() - 1);
+      const prevStr = checkDate.toISOString().split('T')[0];
+      if (!sessionDates.has(prevStr)) break;
+    } else break;
+  }
+
+  // ─── RENDER ──────────────────────────────────────────────────────────
+  const rs = recoveryStatus(avgRecovery);
+  const rcColor = rs.color;
+
+  document.getElementById('app').innerHTML = `
+    <!-- KPIs EJECUTIVOS -->
+    <p class="section-title">Resumen Ejecutivo</p>
+    <div class="kpi-grid">
+      <div class="kpi kpi-good">
+        <div class="kpi-label">Sesiones esta semana</div>
+        <div class="kpi-value">${thisWeek.length}<span>/ 3 meta</span></div>
+        <div class="kpi-sub">${sessions.length} sesiones totales</div>
+      </div>
+      <div class="kpi kpi-info">
+        <div class="kpi-label">Minutos esta semana</div>
+        <div class="kpi-value">${minutesThisWeek}<span>min</span></div>
+        <div class="kpi-sub">Meta: 150–300 min/semana</div>
+      </div>
+      <div class="kpi ${minutesThisWeek >= 150 ? 'kpi-good' : 'kpi-warn'}">
+        <div class="kpi-label">Progreso meta semanal</div>
+        <div class="kpi-value">${minutesThisWeek ? Math.min(Math.round(minutesThisWeek/150*100), 100) : 0}<span>%</span></div>
+        <div class="kpi-sub">vs semana pasada: ${minutesLastWeek} min</div>
+      </div>
+      <div class="kpi kpi-good">
+        <div class="kpi-label">Racha actual</div>
+        <div class="kpi-value">${streak}<span>días</span></div>
+        <div class="kpi-sub">Consistencia es todo</div>
+      </div>
+      <div class="kpi ${z2Pct >= 60 ? 'kpi-good' : 'kpi-warn'}">
+        <div class="kpi-label">Tiempo en Zona 2</div>
+        <div class="kpi-value">${z2Pct != null ? z2Pct : '—'}<span>%</span></div>
+        <div class="kpi-sub">Meta: >60% del tiempo</div>
+      </div>
+      <div class="kpi kpi-info">
+        <div class="kpi-label">Cadencia promedio</div>
+        <div class="kpi-value">${avgCadencia != null ? Math.round(avgCadencia) : '—'}<span>RPM</span></div>
+        <div class="kpi-sub">Meta: 75–90 RPM</div>
+      </div>
+      <div class="kpi" style="--kpi-color: ${rcColor}">
+        <div class="kpi-label">FC Recuperación (1 min)</div>
+        <div class="kpi-value">${avgRecovery != null ? Math.round(avgRecovery) : '—'}<span>bpm</span></div>
+        <div class="kpi-sub" style="color:${rcColor}">${rs.label}</div>
+      </div>
+      <div class="kpi kpi-info">
+        <div class="kpi-label">Eficiencia cardio</div>
+        <div class="kpi-value">${avgEff != null ? fmt(avgEff) : '—'}</div>
+        <div class="kpi-sub">km/h por 100 bpm · ↑ mejor</div>
+      </div>
+    </div>
+
+    <!-- CARDIOVASCULAR -->
+    <p class="section-title">Cardiovascular</p>
+    <div class="chart-grid-3">
+      <div class="chart-box">
+        <h3>FC Promedio por Sesión (tendencia)</h3>
+        <canvas id="chartFC"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Distribución de Zonas (últimas 10)</h3>
+        <div class="zona-bar-container" id="zonaBars"></div>
+      </div>
+    </div>
+
+    <!-- PROGRESIÓN -->
+    <p class="section-title">Progresión</p>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h3>Duración por Sesión (min)</h3>
+        <canvas id="chartDuracion"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Cadencia Promedio (RPM)</h3>
+        <canvas id="chartCadencia"></canvas>
+      </div>
+    </div>
+
+    <!-- VOLUMEN SEMANAL -->
+    <p class="section-title">Volumen Semanal</p>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h3>Minutos por semana</h3>
+        <canvas id="chartVolumen"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>FC Recuperación (bpm drop en 1 min)</h3>
+        <canvas id="chartRecovery"></canvas>
+      </div>
+    </div>
+
+    <!-- SESIONES RECIENTES -->
+    <p class="section-title">Sesiones Recientes</p>
+    <div class="chart-box" style="padding: 0; overflow: hidden;">
+      <table class="session-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Sesión</th>
+            <th>Tipo</th>
+            <th>Duración</th>
+            <th>Dist.</th>
+            <th>Cadencia</th>
+            <th>FC avg</th>
+            <th>FC max</th>
+            <th>Z2</th>
+            <th>Recup.</th>
+            <th>RPE</th>
+          </tr>
+        </thead>
+        <tbody id="sessionRows"></tbody>
+      </table>
+    </div>
+  `;
+
+  // ─── TABLA DE SESIONES ────────────────────────────────────────────────
+  const tbody = document.getElementById('sessionRows');
+  latest.slice(0,15).forEach(s => {
+    const recDrop = (s.fc_max && s.fc_recuperacion) ? Math.round(s.fc_max - s.fc_recuperacion) : null;
+    const badgeClass = BADGE_MAP[s.tipo] || '';
+    tbody.innerHTML += `
+      <tr>
+        <td>${s.fecha || '—'}</td>
+        <td>${s.nombre || '—'}</td>
+        <td>${s.tipo ? `<span class="badge ${badgeClass}">${s.tipo}</span>` : '—'}</td>
+        <td>${s.duracion ? s.duracion + ' min' : '—'}</td>
+        <td>${s.distancia != null ? s.distancia + ' km' : '—'}</td>
+        <td>${s.cadencia_avg != null ? s.cadencia_avg + ' RPM' : '—'}</td>
+        <td>${s.fc_avg != null ? s.fc_avg + ' bpm' : '—'}</td>
+        <td>${s.fc_max != null ? s.fc_max + ' bpm' : '—'}</td>
+        <td>${s.z2 != null ? s.z2 + ' min' : '—'}</td>
+        <td style="color:${recDrop != null ? recoveryStatus(recDrop).color : '#7d8590'}">${recDrop != null ? '↓'+recDrop : '—'}</td>
+        <td>${s.rpe != null ? s.rpe + '/10' : '—'}</td>
+      </tr>`;
+  });
+
+  // ─── ZONA BARS ────────────────────────────────────────────────────────
+  const zoneData = [
+    { label: 'Z1', color: '#4fa3e0', val: sum(zonaSessions.map(s=>s.z1||0)) },
+    { label: 'Z2', color: '#3dd68c', val: sum(zonaSessions.map(s=>s.z2||0)) },
+    { label: 'Z3', color: '#f0c94a', val: sum(zonaSessions.map(s=>s.z3||0)) },
+    { label: 'Z4', color: '#e07a2a', val: sum(zonaSessions.map(s=>s.z4||0)) },
+    { label: 'Z5', color: '#e03a2a', val: sum(zonaSessions.map(s=>s.z5||0)) },
+  ];
+  const totalZona = sum(zoneData.map(z=>z.val)) || 1;
+  const zBars = document.getElementById('zonaBars');
+  zoneData.forEach(z => {
+    const pct = Math.round(z.val / totalZona * 100);
+    zBars.innerHTML += `
+      <div class="zona-row">
+        <div class="zona-label">${z.label}</div>
+        <div class="zona-track">
+          <div class="zona-fill" style="width:${pct}%;background:${z.color}"></div>
+        </div>
+        <div class="zona-pct">${pct}%</div>
+      </div>`;
+  });
+
+  // ─── CHART CONFIG ─────────────────────────────────────────────────────
+  const chartDefaults = {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#2a3441' } },
+      y: { ticks: { color: '#7d8590', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#2a3441' } }
+    }
+  };
+
+  const labels = (arr) => arr.map(s => s.fecha?.slice(5) || '');
+
+  // FC Promedio
+  const fcSessions = latest.filter(s=>s.fc_avg).slice(0,20).reverse();
+  if (fcSessions.length) {
+    new Chart(document.getElementById('chartFC'), {
+      type: 'line',
+      data: {
+        labels: labels(fcSessions),
+        datasets: [{
+          data: fcSessions.map(s=>s.fc_avg),
+          borderColor: '#e05c2a',
+          backgroundColor: 'rgba(224,92,42,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#e05c2a'
+        }]
+      },
+      options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 80 } } }
+    });
+  }
+
+  // Duración
+  const durSessions = latest.filter(s=>s.duracion).slice(0,20).reverse();
+  if (durSessions.length) {
+    new Chart(document.getElementById('chartDuracion'), {
+      type: 'bar',
+      data: {
+        labels: labels(durSessions),
+        datasets: [{
+          data: durSessions.map(s=>s.duracion),
+          backgroundColor: 'rgba(79,163,224,0.7)',
+          borderRadius: 4
+        }]
+      },
+      options: { ...chartDefaults }
+    });
+  }
+
+  // Cadencia
+  if (cadSessions.length) {
+    const cadReverse = [...cadSessions].reverse();
+    new Chart(document.getElementById('chartCadencia'), {
+      type: 'line',
+      data: {
+        labels: labels(cadReverse),
+        datasets: [{
+          data: cadReverse.map(s=>s.cadencia_avg),
+          borderColor: '#3dd68c',
+          backgroundColor: 'rgba(61,214,140,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#3dd68c'
+        }]
+      },
+      options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, min: 50 } } }
+    });
+  }
+
+  // Volumen semanal
+  const weekMap = {};
+  sessions.forEach(s => {
+    if (!s.duracion) return;
+    const wk = getWeekKey(s.fecha);
+    weekMap[wk] = (weekMap[wk] || 0) + s.duracion;
+  });
+  const weekKeys = Object.keys(weekMap).sort().slice(-12);
+  if (weekKeys.length) {
+    new Chart(document.getElementById('chartVolumen'), {
+      type: 'bar',
+      data: {
+        labels: weekKeys.map(w => w.replace('-W', ' W')),
+        datasets: [{
+          data: weekKeys.map(w => weekMap[w]),
+          backgroundColor: weekKeys.map(w => weekMap[w] >= 150 ? 'rgba(61,214,140,0.7)' : 'rgba(240,201,74,0.6)'),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        ...chartDefaults,
+        plugins: {
+          ...chartDefaults.plugins,
+          annotation: {}
+        }
+      }
+    });
+  }
+
+  // FC Recovery
+  const recSorted = latest.filter(s=>s.fc_max && s.fc_recuperacion).slice(0,12).reverse();
+  if (recSorted.length) {
+    new Chart(document.getElementById('chartRecovery'), {
+      type: 'line',
+      data: {
+        labels: labels(recSorted),
+        datasets: [{
+          data: recSorted.map(s => s.fc_max - s.fc_recuperacion),
+          borderColor: '#a064e0',
+          backgroundColor: 'rgba(160,100,224,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#a064e0'
+        }]
+      },
+      options: {
+        ...chartDefaults,
+        scales: {
+          ...chartDefaults.scales,
+          y: { ...chartDefaults.scales.y, min: 0,
+            grid: { ...chartDefaults.scales.y.grid, color: (ctx) => ctx.tick.value === 15 ? '#3dd68c44' : '#2a3441' }
+          }
+        }
+      }
+    });
+  }
+}
+
+loadAndRender();
+</script>
+</body>
+</html>
