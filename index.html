@@ -73,6 +73,36 @@
     text-align: right;
   }
 
+  #btn-reload {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  #btn-reload:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  #btn-reload.spinning svg {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
   /* LAYOUT */
   main {
     max-width: 1400px;
@@ -350,7 +380,16 @@
     <h1>🚴 <span>Bicicleta</span> — Training Dashboard</h1>
     <p>Monitoreo cardiovascular · Zona 2 · Consistencia</p>
   </div>
-  <div id="last-update">Cargando datos...</div>
+  <div style="text-align:right">
+    <div id="last-update">Cargando datos...</div>
+    <button id="btn-reload" onclick="reloadData()">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+      Recargar datos
+    </button>
+  </div>
 </header>
 
 <main id="app">
@@ -769,6 +808,18 @@ async function loadAndRender() {
       }
     });
   }
+}
+
+function reloadData() {
+  const btn = document.getElementById('btn-reload');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  // Destruir charts existentes
+  Chart.helpers.each(Chart.instances, c => c.destroy());
+  loadAndRender().finally(() => {
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+  });
 }
 
 loadAndRender();
