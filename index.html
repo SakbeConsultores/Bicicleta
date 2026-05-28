@@ -438,13 +438,6 @@ function getWeekKey(dateStr) {
   return `${d.getFullYear()}-W${String(weekNumber(d)).padStart(2,'0')}`;
 }
 
-function recoveryStatus(bpm) {
-  if (bpm == null) return { label: 'Sin dato', color: '#7d8590' };
-  if (bpm >= 25)   return { label: '✓ Muy buena', color: '#3dd68c' };
-  if (bpm >= 15)   return { label: '~ Normal', color: '#f0c94a' };
-  return             { label: '↓ Mejorar', color: '#e03a2a' };
-}
-
 // ─── MAIN ─────────────────────────────────────────────────────────────────
 async function loadAndRender() {
   let sessions = [];
@@ -489,11 +482,19 @@ async function loadAndRender() {
   const minutesThisWeek = sum(thisWeek.map(s => s.duracion));
   const minutesLastWeek = sum(lastWeek.map(s => s.duracion));
 
-  // ── FC RECUPERACIÓN PROMEDIO (últimas 5) ──────────────────────────────
-  const recSessions = latest.filter(s => s.fc_max != null && s.fc_recuperacion != null).slice(0,5);
-  const avgRecovery = recSessions.length
-    ? avg(recSessions.map(s => s.fc_max - s.fc_recuperacion))
-    : null;
+  // ── IF PROMEDIO (últimas 10) ──────────────────────────────────────────
+  const ifSessions = latest.filter(s => s.if_factor != null).slice(0,10);
+  const avgIF = ifSessions.length ? avg(ifSessions.map(s => s.if_factor)) : null;
+  const ifStatus = (v) => {
+    if (v == null) return { label: 'Sin dato', color: '#7d8590' };
+    if (v < 0.75)  return { label: 'Fácil / Z2', color: '#3dd68c' };
+    if (v < 0.85)  return { label: 'Moderado', color: '#f0c94a' };
+    return           { label: 'Intenso', color: '#e03a2a' };
+  };
+
+  // ── hrTSS SEMANAL ─────────────────────────────────────────────────────
+  const tssThisWeek = sum(thisWeek.filter(s=>s.hr_tss).map(s=>s.hr_tss));
+  const tssLastWeek = sum(lastWeek.filter(s=>s.hr_tss).map(s=>s.hr_tss));
 
   // ── CADENCIA PROMEDIO (últimas 10) ────────────────────────────────────
   const cadSessions = latest.filter(s => s.cadencia_avg != null).slice(0,10);
@@ -526,8 +527,7 @@ async function loadAndRender() {
   }
 
   // ─── RENDER ──────────────────────────────────────────────────────────
-  const rs = recoveryStatus(avgRecovery);
-  const rcColor = rs.color;
+  const ifs = ifStatus(avgIF);
 
   document.getElementById('app').innerHTML = `
     <!-- KPIs EJECUTIVOS -->
@@ -563,15 +563,15 @@ async function loadAndRender() {
         <div class="kpi-value">${avgCadencia != null ? Math.round(avgCadencia) : '—'}<span>RPM</span></div>
         <div class="kpi-sub">Meta: 75–90 RPM</div>
       </div>
-      <div class="kpi" style="--kpi-color: ${rcColor}">
-        <div class="kpi-label">FC Recuperación (1 min)</div>
-        <div class="kpi-value">${avgRecovery != null ? Math.round(avgRecovery) : '—'}<span>bpm</span></div>
-        <div class="kpi-sub" style="color:${rcColor}">${rs.label}</div>
+      <div class="kpi" style="--kpi-color: ${ifs.color}">
+        <div class="kpi-label">Intensity Factor (IF) avg</div>
+        <div class="kpi-value">${avgIF != null ? avgIF.toFixed(2) : '—'}</div>
+        <div class="kpi-sub" style="color:${ifs.color}">${ifs.label} · meta &lt;0.85</div>
       </div>
       <div class="kpi kpi-info">
-        <div class="kpi-label">Eficiencia cardio</div>
-        <div class="kpi-value">${avgEff != null ? fmt(avgEff) : '—'}</div>
-        <div class="kpi-sub">km/h por 100 bpm · ↑ mejor</div>
+        <div class="kpi-label">hrTSS esta semana</div>
+        <div class="kpi-value">${tssThisWeek || '—'}</div>
+        <div class="kpi-sub">semana pasada: ${tssLastWeek || '—'} · regla +10%</div>
       </div>
     </div>
 
@@ -602,15 +602,15 @@ async function loadAndRender() {
     </div>
 
     <!-- VOLUMEN SEMANAL -->
-    <p class="section-title">Volumen Semanal</p>
+    <p class="section-title">Volumen y Carga Semanal</p>
     <div class="chart-grid">
       <div class="chart-box">
         <h3>Minutos por semana</h3>
         <canvas id="chartVolumen"></canvas>
       </div>
       <div class="chart-box">
-        <h3>FC Recuperación (bpm drop en 1 min)</h3>
-        <canvas id="chartRecovery"></canvas>
+        <h3>hrTSS por semana (carga de entrenamiento)</h3>
+        <canvas id="chartTSS"></canvas>
       </div>
     </div>
 
@@ -629,7 +629,8 @@ async function loadAndRender() {
             <th>FC avg</th>
             <th>FC max</th>
             <th>Z2</th>
-            <th>Recup.</th>
+            <th>IF</th>
+            <th>hrTSS</th>
             <th>RPE</th>
           </tr>
         </thead>
@@ -641,7 +642,7 @@ async function loadAndRender() {
   // ─── TABLA DE SESIONES ────────────────────────────────────────────────
   const tbody = document.getElementById('sessionRows');
   latest.slice(0,15).forEach(s => {
-    const recDrop = (s.fc_max && s.fc_recuperacion) ? Math.round(s.fc_max - s.fc_recuperacion) : null;
+    const ifColor = s.if_factor != null ? ifStatus(s.if_factor).color : '#7d8590';
     const badgeClass = BADGE_MAP[s.tipo] || '';
     tbody.innerHTML += `
       <tr>
@@ -654,7 +655,8 @@ async function loadAndRender() {
         <td>${s.fc_avg != null ? s.fc_avg + ' bpm' : '—'}</td>
         <td>${s.fc_max != null ? s.fc_max + ' bpm' : '—'}</td>
         <td>${s.z2 != null ? s.z2 + ' min' : '—'}</td>
-        <td style="color:${recDrop != null ? recoveryStatus(recDrop).color : '#7d8590'}">${recDrop != null ? '↓'+recDrop : '—'}</td>
+        <td style="color:${ifColor}">${s.if_factor != null ? s.if_factor.toFixed(2) : '—'}</td>
+        <td>${s.hr_tss != null ? Math.round(s.hr_tss) : '—'}</td>
         <td>${s.rpe != null ? s.rpe + '/10' : '—'}</td>
       </tr>`;
   });
@@ -780,32 +782,26 @@ async function loadAndRender() {
     });
   }
 
-  // FC Recovery
-  const recSorted = latest.filter(s=>s.fc_max && s.fc_recuperacion).slice(0,12).reverse();
-  if (recSorted.length) {
-    new Chart(document.getElementById('chartRecovery'), {
-      type: 'line',
+  // hrTSS semanal
+  const tssMap = {};
+  sessions.forEach(s => {
+    if (!s.hr_tss) return;
+    const wk = getWeekKey(s.fecha);
+    tssMap[wk] = (tssMap[wk] || 0) + s.hr_tss;
+  });
+  const tssKeys = Object.keys(tssMap).sort().slice(-12);
+  if (tssKeys.length) {
+    new Chart(document.getElementById('chartTSS'), {
+      type: 'bar',
       data: {
-        labels: labels(recSorted),
+        labels: tssKeys.map(w => w.replace('-W', ' W')),
         datasets: [{
-          data: recSorted.map(s => s.fc_max - s.fc_recuperacion),
-          borderColor: '#a064e0',
-          backgroundColor: 'rgba(160,100,224,0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 4,
-          pointBackgroundColor: '#a064e0'
+          data: tssKeys.map(w => Math.round(tssMap[w])),
+          backgroundColor: 'rgba(160,100,224,0.7)',
+          borderRadius: 4
         }]
       },
-      options: {
-        ...chartDefaults,
-        scales: {
-          ...chartDefaults.scales,
-          y: { ...chartDefaults.scales.y, min: 0,
-            grid: { ...chartDefaults.scales.y.grid, color: (ctx) => ctx.tick.value === 15 ? '#3dd68c44' : '#2a3441' }
-          }
-        }
-      }
+      options: { ...chartDefaults }
     });
   }
 }
