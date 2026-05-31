@@ -466,10 +466,12 @@ async function loadAndRender() {
     `Última sesión: <strong>${lastDate || '—'}</strong><br>
      <span style="font-size:0.65rem">Sync diario vía GitHub Actions</span>`;
 
-  // ── SEMANA ACTUAL ─────────────────────────────────────────────────────
+  // ── SEMANA ACTUAL (inicia lunes) ──────────────────────────────────────
   const now = new Date();
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay() + 1);
+  const day = now.getDay(); // 0=dom, 1=lun, ..., 6=sab
+  const diffToMonday = day === 0 ? -6 : 1 - day; // si domingo retrocede 6, si otro día ajusta a lunes
+  weekStart.setDate(now.getDate() + diffToMonday);
   weekStart.setHours(0,0,0,0);
 
   const thisWeek = sessions.filter(s => new Date(s.fecha) >= weekStart);
@@ -811,8 +813,11 @@ function reloadData() {
   btn.classList.add('spinning');
   btn.disabled = true;
   // Destruir charts existentes
-  Chart.helpers.each(Chart.instances, c => c.destroy());
-  loadAndRender().finally(() => {
+  Object.values(Chart.instances).forEach(c => c.destroy());
+  loadAndRender().then(() => {
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+  }).catch(() => {
     btn.classList.remove('spinning');
     btn.disabled = false;
   });
