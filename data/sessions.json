@@ -1,5 +1,32 @@
 [
   {
+    "id": "3700e1df-2fda-8049-acee-cc2565e24eb0",
+    "nombre": "Indoor",
+    "fecha": "2026-05-30",
+    "duracion": 35.26,
+    "distancia": 12.61,
+    "cadencia_avg": 84,
+    "cadencia_max": 95,
+    "velocidad_avg": 21.34,
+    "velocidad_max": 27.21,
+    "fc_avg": 106,
+    "fc_max": 135,
+    "fc_reposo": null,
+    "if_factor": 0.61,
+    "hr_tss": 24,
+    "z1": 19.57,
+    "z2": 15.29,
+    "z3": null,
+    "z4": null,
+    "z5": null,
+    "calorias": 253,
+    "rpe": 6,
+    "energia_pre": 3,
+    "sueno": 3,
+    "dolor_articular": 2,
+    "tipo": null
+  },
+  {
     "id": "36e0e1df-2fda-80ed-abb8-e069530e223d",
     "nombre": "Indoor",
     "fecha": "2026-05-27",
@@ -23,7 +50,7 @@
     "rpe": 6,
     "energia_pre": 3,
     "sueno": 2,
-    "dolor_articular": null,
+    "dolor_articular": 2,
     "tipo": null
   },
   {
@@ -50,7 +77,7 @@
     "rpe": 5,
     "energia_pre": 3,
     "sueno": 3,
-    "dolor_articular": null,
+    "dolor_articular": 2,
     "tipo": null
   }
 ]
